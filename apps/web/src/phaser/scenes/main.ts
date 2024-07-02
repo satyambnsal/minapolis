@@ -31,8 +31,13 @@ export class MainScene extends Scene {
   closeHelpButton: Button | null = null;
   helpPage: GameObjects.Image | null = null;
   score = 0;
+  initialTime = 0;
   scoreBreakdown: number[] = [];
   scoreText: GameObjects.BitmapText | null = null;
+
+  timerText: GameObjects.BitmapText | null = null;
+  timedEvent: Phaser.Time.TimerEvent | null = null;
+
   waves: GameObjects.Image | null = null;
   waves2: GameObjects.Image | null = null;
 
@@ -47,6 +52,9 @@ export class MainScene extends Scene {
   currentTimeText: GameObjects.BitmapText | null = null;
   playAgainButton: GameObjects.BitmapText | null = null;
   shareButton: GameObjects.Image | null = null;
+
+  timerBackground: GameObjects.Rectangle | null = null
+
 
   // playAgainButton: Button | null = null;
   breakdownContainer: GameObjects.Container | null = null;
@@ -197,7 +205,69 @@ export class MainScene extends Scene {
     );
 
     this.input.on("wheel", this.onMouseWheel, this);
+
+
+    const isTimerGame = this.game.registry.get("isTimerGame");
+    if(isTimerGame){
+      this.initialTime = 15;
+      this.timerText = this.add.bitmapText(900, 100, "font", `Remaining Time : ${this.formatTime(this.initialTime)}`, 44);
+      this.timerText.setTint(0x00ff7f);
+      this.timedEvent = this.time.addEvent({ delay: 1000, callback: this.onEvent, callbackScope: this, loop: true });
+      
+      // Add a background for the timer
+      // this.timerBackground = this.add.rectangle(1000, 100, 400, 60, 0x000000, 0.5);
+      // this.timerBackground.setOrigin(0.5);
+      // this.timerBackground.setDepth(this.timerText.depth - 1);
+    }
+}
+
+
+onEvent() {
+  this.initialTime -= 1; 
+  this.timerText?.setText(`Remaining Time : ${this.formatTime(this.initialTime)}`);
+  
+  if (this.initialTime <= 10) {
+    // Change color to yellow at 10 seconds
+    this.timerText?.setTint(0xffff00);
   }
+  
+  if (this.initialTime <= 5) {
+    // Change color to red at 5 seconds
+    this.timerText?.setTint(0xff0000);
+    this.pulseAndShakeTimer();
+  }
+
+  if(this.initialTime === 0){
+    this.timedEvent?.remove();
+    this.grid!.onQueueEmpty = this.endGame.bind(this);
+    this.grid!.deactivate();
+    this.timerText?.setPosition(900, 100);
+    this.timerText?.setScale(1);
+  }
+}
+
+pulseAndShakeTimer() {
+  // Pulse animation
+  this.tweens.add({
+    targets: this.timerText,
+    scale: 1.05,
+    duration: 200,
+    yoyo: true,
+    repeat: 1,
+    ease: 'Sine.easeInOut'
+  });
+
+  // Shake animation
+  this.tweens.add({
+    targets: this.timerText,
+    x: 900 + Phaser.Math.Between(-6, 6),
+    y: 100 + Phaser.Math.Between(-6, 6),
+    duration: 50,
+    yoyo: true,
+    repeat: 3,
+    ease: 'Sine.easeInOut'
+  });
+}
 
   onNewPoints(points: number, hexType: number) {
     this.score += points;
@@ -377,6 +447,12 @@ export class MainScene extends Scene {
     const handleSaveScore = this.game.registry.get("handleSaveScore");
     const isDemoGame = this.game.registry.get("isDemoGame");
     const competitionKey = this.game.registry.get("competitionKey");
+
+    const isTimerGame = this.game.registry.get("isTimerGame");
+
+      if(isTimerGame){
+          this.timedEvent?.remove();
+      }
 
     if (this.scoreText) {
       handleSaveScore(this.score);
@@ -707,6 +783,19 @@ export class MainScene extends Scene {
   navigateToExternalSite(url: string) {
     window.open(url, "_blank");
   }
+
+ formatTime(seconds: number): string {
+    // Minutes
+    const minutes = Math.floor(seconds / 60);
+    // Seconds
+    let partInSeconds: number | string = seconds % 60;
+    // Adds left zeros to seconds
+    partInSeconds = partInSeconds.toString().padStart(2, '0');
+    // Returns formated time
+    return `${minutes}:${partInSeconds}`;
+}
+
+
 
   onPointerUp(event: Input.Pointer) {
     if (this.pointerDown) {

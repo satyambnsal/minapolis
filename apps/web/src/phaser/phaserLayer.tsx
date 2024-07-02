@@ -29,6 +29,7 @@ export const PhaserLayer = ({
 }: PhaserLayerProps) => {
   const { address } = useNetworkStore();
   const [showGameInfoModal, setShowGameInfoModal] = useState(false);
+  const [isTimerGame, setIsTimerGame] = useState(true);
   console.log("address", address);
 
   const leaderboardMutation = useSaveScore({
@@ -86,6 +87,7 @@ export const PhaserLayer = ({
     game.registry.set("showGameInfoModalFn", showGameInfoModalFn);
     game.registry.set("competitionKey", competitionKey);
     game.registry.set("scoreTweetContent", scoreTweetContent);
+    game.registry.set("isTimerGame", isTimerGame);
     return () => {
       game.destroy(true);
     };
