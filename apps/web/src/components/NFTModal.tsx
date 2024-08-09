@@ -5,7 +5,7 @@ import Image from "next/image";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { Cross1Icon, InfoCircledIcon } from "@radix-ui/react-icons";
 import { Json } from "@/lib/database.types"; // Import the Json type from your database types
-import { useNetworkStore } from "@/lib/stores/network";
+import { useNetworkStore, usePayNFTMintFee } from "@/lib/stores/network";
 import { ATTRIBUTES_DATA } from "@/constants";
 import { useGlobalConfig } from "@/db/react-query-hooks";
 import { UseQueryResult } from "@tanstack/react-query";
@@ -47,6 +47,9 @@ export const NFTModal = ({
   name,
   nftPrice,
   renderStyle,
+  ownerAddress,
+  txnHash,
+  nftID,
 }: {
   traits: Json;
   img_url: string;
@@ -55,6 +58,8 @@ export const NFTModal = ({
   nftID: number;
   nftPrice: number;
   renderStyle: string;
+  ownerAddress: string | null;
+  txnHash: string | null;
 }) => {
   // Function to parse traits
   const configData: UseQueryResult<void | GlobalConfig, unknown> =
@@ -67,6 +72,7 @@ export const NFTModal = ({
   const globalConfig = useAtomValue(globalConfigAtom);
 
   const networkStore = useNetworkStore();
+  const { payNFTMintFees } = usePayNFTMintFee();
   const parseTraits = (traits: Json): Trait[] => {
     if (Array.isArray(traits)) {
       return traits.filter(
@@ -87,15 +93,13 @@ export const NFTModal = ({
 
   const parsedTraits = parseTraits(traits);
 
-  const handlePayParticipationFess = () => {
-    if (!networkStore.address) {
-      try {
-        networkStore.connectWallet(false);
-      } catch (error) {
-        console.error(`Failed to connect with wallet`, error);
-      } finally {
-        return;
-      }
+  const handleMint = async () => {
+    //TODO: Handle loading state for mint button
+
+    try {
+      await payNFTMintFees({ nft_id: nftID, nft_price: nftPrice });
+    } catch (error) {
+      //TODO: Handle error with proper toast
     }
   };
 
@@ -192,7 +196,7 @@ export const NFTModal = ({
                 )}
                 <button
                   className="h-10 rounded-md border-primary bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-primary/90"
-                  onClick={handlePayParticipationFess}
+                  onClick={handleMint}
                   disabled={isMintingDisabled}
                 >
                   {!!networkStore.address

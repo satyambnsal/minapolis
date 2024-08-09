@@ -1,10 +1,11 @@
 "use client";
-import { useCompetitionsName } from "@/db/react-query-hooks";
-import { getFilteredLeaderboardEntries } from "@/db/supabase-queries";
-import { Skeleton, Table } from "@radix-ui/themes";
-import { DropdownMenu } from "@radix-ui/themes";
+import { useState } from "react";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { Table, DropdownMenu } from "@radix-ui/themes";
+import {
+  useCompetitionsName,
+  useLeaderboardEntries,
+} from "@/db/react-query-hooks";
 import TableSkeleton from "./tableSkeleton";
 
 type SelectedCompetition = {
@@ -16,6 +17,7 @@ type LeaderboardResult = {
   competition_key: string;
   created_at: string;
   game_id: number;
+  username: string;
   id: number;
   score: number;
   wallet_address: string;
@@ -24,7 +26,6 @@ type LeaderboardResult = {
 export default function Leaderboard() {
   const {
     data: competitionData,
-    isLoading: competitionLoading,
     isError: isCompetitionError,
     error: competitionError,
   } = useCompetitionsName();
@@ -36,51 +37,15 @@ export default function Leaderboard() {
       competition_key: "heros_tileville",
     } as SelectedCompetition);
 
-  const [leaderboardData, setLeaderboardData] = useState<LeaderboardResult[]>(
-    []
+  const { data: leaderboardData = [], isLoading } = useLeaderboardEntries(
+    selectedCompetition.competition_key
   );
-  const [usernames, setUsernames] = useState<{
-    [walletAddress: string]: string;
-  }>({});
-
-  useEffect(() => {
-    if (selectedCompetition.id) {
-      getFilteredLeaderboardEntries(selectedCompetition.competition_key)
-        .then(async (leaderboardEntries) => {
-          setLeaderboardData(leaderboardEntries);
-
-          const usernameMap: { [walletAddress: string]: string } = {};
-          await Promise.all(
-            leaderboardEntries.map(async (entry) => {
-              try {
-                const response: any = await fetch(
-                  `/api/player_username?wallet_address=${entry.wallet_address}`
-                ).then((res) => res.json());
-                if (response.status && !!response?.data.username) {
-                  usernameMap[entry.wallet_address] = response.data.username;
-                } else {
-                  usernameMap[entry.wallet_address] = "-";
-                }
-              } catch (error) {
-                console.warn(
-                  `Failed to fetch username for ${entry.wallet_address}`,
-                  error
-                );
-                usernameMap[entry.wallet_address] = "Error";
-              }
-            })
-          );
-          setUsernames(usernameMap);
-        })
-        .catch((error) => {
-          console.warn("Failed to fetch leaderboard data", error);
-        });
-    }
-  }, [selectedCompetition.id]);
 
   if (isCompetitionError) {
     return (
-      <div>Error: {(competitionError as { message: string }).message}</div>
+      <div className="p-30">
+        Error: {(competitionError as { message: string }).message}
+      </div>
     );
   }
 
@@ -136,25 +101,29 @@ export default function Leaderboard() {
           </Table.Header>
 
           <Table.Body>
-            {competitionLoading ? (
+            {isLoading ? (
               <TableSkeleton />
             ) : (
               <>
-                {leaderboardData.map((entry, index) => (
-                  <Table.Row key={entry.id}>
-                    <Table.Cell>{index + 1}</Table.Cell>
-                    <Table.Cell>
-                      {usernames[entry.wallet_address] || (
-                        <Skeleton className="h-3 w-20"></Skeleton>
-                      )}
-                    </Table.Cell>
-                    <Table.RowHeaderCell>
-                      {entry.wallet_address}
-                    </Table.RowHeaderCell>
-                    <Table.Cell>{entry.game_id}</Table.Cell>
-                    <Table.Cell>{entry.score}</Table.Cell>
-                  </Table.Row>
-                ))}
+                {leaderboardData.map(
+                  (entry: LeaderboardResult, index: number) => (
+                    <Table.Row key={entry.id}>
+                      <Table.Cell>{index + 1}</Table.Cell>
+                      <Table.Cell>
+                        {entry.username ? (
+                          entry.username
+                        ) : (
+                          <span className="ps-4">-</span>
+                        )}
+                      </Table.Cell>
+                      <Table.RowHeaderCell>
+                        {entry.wallet_address}
+                      </Table.RowHeaderCell>
+                      <Table.Cell>{entry.game_id}</Table.Cell>
+                      <Table.Cell>{entry.score}</Table.Cell>
+                    </Table.Row>
+                  )
+                )}
               </>
             )}
           </Table.Body>

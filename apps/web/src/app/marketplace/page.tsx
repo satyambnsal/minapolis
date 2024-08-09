@@ -258,6 +258,8 @@ export default function Marketplace() {
                       nftID={nft.nft_id}
                       nftPrice={nft.price}
                       renderStyle={renderStyle}
+                      ownerAddress={nft.owner_address}
+                      txnHash={nft.txn_hash}
                     />
                   );
                 })}

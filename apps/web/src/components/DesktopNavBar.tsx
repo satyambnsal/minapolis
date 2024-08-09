@@ -71,14 +71,27 @@ export const DesktopNavBar = ({ autoConnect }: { autoConnect: boolean }) => {
 
   useEffect(() => {
     if (networkStore.walletConnected && isFetched) {
-      if (!accountAuthSignature) {
+      let isSignatureRequired = true;
+      if (accountAuthSignature) {
+        try {
+          const signatureAccount = accountAuthSignature.split(" ")[0] || "";
+          isSignatureRequired =
+            signatureAccount === networkStore.address ? false : true;
+        } catch (error) {
+          console.warn(`Failed to parse stored signature.`);
+          isSignatureRequired = true;
+        }
+      }
+      if (isSignatureRequired) {
         (window as any).mina
           ?.signMessage({
             message: ACCOUNT_AUTH_MESSAGE,
           })
-          .then((signResult: { signature: any }) => {
-            const signature = signResult.signature;
-            setAccountAuthSignature(signature);
+          .then((signResult: any) => {
+            const authSignatureStr = `${signResult.publicKey || ""} ${
+              signResult?.signature?.scalar || ""
+            } ${signResult?.signature?.field || ""}`;
+            setAccountAuthSignature(authSignatureStr);
           })
           .catch((error: any) => {
             console.log("failed to set signature", error);

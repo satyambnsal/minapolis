@@ -8,6 +8,7 @@ import { usePosthogEvents } from "@/hooks/usePosthogEvents";
 import { Competition } from "@/types";
 import { useMutation } from "@tanstack/react-query";
 import { Spinner } from "./common/Spinner";
+import { DEFAULT_TRASURY_ADDRESS } from "@/constants";
 
 type GameEntryFeesModalProps = {
   open: boolean;
@@ -61,9 +62,7 @@ export const GameEntryFeesModal = ({
     });
     const data = await payParticipationFees({
       participation_fee: competition.participation_fee ?? 0,
-      treasury_address:
-        competition.treasury_address ||
-        "B62qqhL8xfHBpCUTk1Lco2Sq8HitFsDDNJraQG9qCtWwyvxcPADn4EV",
+      treasury_address: competition.treasury_address || DEFAULT_TRASURY_ADDRESS,
       competition_key: competition.unique_keyname,
       type: vocherValidationResponse.isValid
         ? "VOUCHER"
