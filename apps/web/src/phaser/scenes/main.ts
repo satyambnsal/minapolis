@@ -14,6 +14,18 @@ import {
 import { Button, pick, shuffle } from "../util";
 import { Scene, GameObjects, Input, Math as PhaserMath } from "phaser";
 
+interface Level {
+  hexSize: number;
+  hillsCount: number;
+  deckSize: number;
+  isMineTile: boolean;
+}
+
+interface Tile {
+  row: number;
+  col: number;
+  tile_type: number;
+}
 export class MainScene extends Scene {
   grid: HexGrid | null = null;
   foreground: GameObjects.Image | null = null;
@@ -59,6 +71,7 @@ export class MainScene extends Scene {
   competitionNameText: GameObjects.BitmapText | null = null;
   currentTimeText: GameObjects.BitmapText | null = null;
   playAgainButton: GameObjects.BitmapText | null = null;
+  nextLevelButton: GameObjects.BitmapText | null = null;
   shareButton: GameObjects.Image | null = null;
 
   // playAgainButton: Button | null = null;
@@ -66,11 +79,20 @@ export class MainScene extends Scene {
   breakdownHexes: Hex[] = [];
   breakdownTexts: GameObjects.BitmapText[] = [];
 
+  currentLevel = 0;
+  levels: Level[] = [];
+
   constructor() {
     super("main");
   }
 
+  init(data: any) {
+    this.currentLevel = data.level;
+  }
+
   create() {
+    console.log(this.currentLevel);
+    this.levels = JSON.parse(this.cache.text.get("levels")) as Level[];
     const isSpeedVersion = this.game.registry.get("isSpeedVersion");
 
     this.add.rectangle(640, 360, 1280, 720);
@@ -78,12 +100,29 @@ export class MainScene extends Scene {
     bgImage.setScale(0.2);
     bgImage.setAlpha(0.1);
     this.score = 0;
-    this.scoreBreakdown = [0, 0, 0, 0, 0, 0];
+
+    if (this.levels[this.currentLevel - 1].isMineTile) {
+      this.scoreBreakdown = [0, 0, 0, 0, 0, 0, 0, 0];
+    } else {
+      this.scoreBreakdown = [0, 0, 0, 0, 0, 0];
+    }
 
     this.pointerDown = false;
 
-    this.grid = new HexGrid(this, 5, 8, 0, 0, this.onNewPoints.bind(this));
-    this.trihexDeck = this.createTrihexDeck(25, true);
+    // this.waves = this.add.image(640, 360, 'waves');
+    // this.waves2 = this.add.image(640, 360, 'waves2');
+    this.grid = new HexGrid(
+      this,
+      this.levels[this.currentLevel - 1].hexSize,
+      this.levels[this.currentLevel - 1].hillsCount,
+      0,
+      0,
+      this.onNewPoints.bind(this)
+    );
+    this.trihexDeck = this.createTrihexDeck(
+      this.levels[this.currentLevel - 1].deckSize,
+      true
+    );
 
     if (isSpeedVersion) {
       this.scoreTextPositionX = -40;
@@ -458,13 +497,26 @@ export class MainScene extends Scene {
       }
     }
     deck = shuffle(deck);
-    for (let i = 0; i < size; i++) {
-      if (i < size / 2) {
-        deck[i].hexes[1] = 3;
-      } else {
-        deck[i].hexes[1] = 2;
+    if (this.levels[this.currentLevel - 1].isMineTile) {
+      for (let i = 0; i < size; i++) {
+        if (i < (3 * size) / 10) {
+          deck[i].hexes[1] = 3;
+        } else if (i < size / 2) {
+          deck[i].hexes[1] = 6;
+        } else {
+          deck[i].hexes[1] = 2;
+        }
+      }
+    } else {
+      for (let i = 0; i < size; i++) {
+        if (i < size / 2) {
+          deck[i].hexes[1] = 3;
+        } else {
+          deck[i].hexes[1] = 2;
+        }
       }
     }
+
     deck = shuffle(deck);
     for (let i = 0; i < size; i++) {
       if (i < size / 2) {
@@ -548,7 +600,6 @@ export class MainScene extends Scene {
 
     if (this.scoreText) {
       handleSaveScore(this.score);
-      console.log("data send to database");
     }
 
     this.grid!.sinkBlanks();
@@ -669,20 +720,20 @@ export class MainScene extends Scene {
       message2 = "(This is the highest rank!)";
     }
 
-    this.gameOverText = this.add.bitmapText(1500, 70, "font", message1, 60);
+    this.gameOverText = this.add.bitmapText(1625, 70, "font", message1, 60);
     this.gameOverText.setOrigin(0.5);
     this.gameOverText.setDepth(4);
 
-    this.rankText = this.add.bitmapText(1500, 460, "font", rank, 60);
+    this.rankText = this.add.bitmapText(1625, 460, "font", rank, 60);
     this.rankText.setOrigin(0.5);
     this.rankText.setDepth(4);
 
-    this.nextRankText = this.add.bitmapText(1500, 520, "font", message2, 40);
+    this.nextRankText = this.add.bitmapText(1625, 520, "font", message2, 40);
     this.nextRankText.setOrigin(0.5);
     this.nextRankText.setDepth(4);
 
     this.competitionNameText = this.add.bitmapText(
-      1500,
+      1625,
       570,
       "font",
       `Competition Key: ${competitionKey}`,
@@ -693,7 +744,7 @@ export class MainScene extends Scene {
 
     const currentTime: string = this.getGameStartTime();
     this.currentTimeText = this.add.bitmapText(
-      1500,
+      1625,
       590,
       "font",
       `Played At: ${currentTime}`,
@@ -704,7 +755,7 @@ export class MainScene extends Scene {
 
     if (isDemoGame) {
       this.playAgainButton = this.add
-        .bitmapText(1400, 630, "font", "Play Again", 40)
+        .bitmapText(1525, 630, "font", "Play Again", 40)
         .setInteractive({ useHandCursor: true })
         .setOrigin(0.5)
         .on("pointerover", () => {
@@ -750,8 +801,51 @@ export class MainScene extends Scene {
         .setDepth(4);
     }
 
+    this.nextLevelButton = this.add
+      .bitmapText(1525, 410, "font", "Next Round", 40)
+      .setInteractive({ useHandCursor: true })
+      .setOrigin(0.5)
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: this.nextLevelButton,
+          scaleX: 1.1,
+          scaleY: 1.1,
+          duration: 60,
+          ease: "Linear",
+        });
+      })
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: this.nextLevelButton,
+          scaleX: 1.1,
+          scaleY: 1.1,
+          duration: 60,
+          ease: "Linear",
+        });
+      })
+      .on("pointerout", () =>
+        this.tweens.add({
+          targets: this.nextLevelButton,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 60,
+          ease: "Linear",
+        })
+      )
+      .on("pointerdown", () => {
+        this.tweens.add({
+          targets: this.nextLevelButton,
+          scaleX: 1.1,
+          scaleY: 1.1,
+          duration: 60,
+          ease: "Linear",
+        });
+        this.nextRound();
+      })
+      .setDepth(4);
+
     this.shareButton = this.add
-      .image(1450, 700, "share-score-button")
+      .image(1575, 700, "share-score-button")
       .setInteractive({ useHandCursor: true })
       .on("pointerover", () => {
         this.tweens.add({
@@ -800,13 +894,19 @@ export class MainScene extends Scene {
       })
       .setDepth(4);
 
-    this.breakdownContainer = this.add.container(1500, 300);
+    this.breakdownContainer = this.add.container(1625, 300);
     this.breakdownContainer.setDepth(4);
 
     this.breakdownHexes = [];
     this.breakdownTexts = [];
+    let resultCardCount = 3;
+    if (this.levels[this.currentLevel - 1].isMineTile) {
+      resultCardCount = 4;
+    } else {
+      resultCardCount = 3;
+    }
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < resultCardCount; i++) {
       const h = new Hex(this, 0, 0, -1, -1);
       h.embiggen();
       h.setDepth(4);
@@ -838,9 +938,16 @@ export class MainScene extends Scene {
     this.breakdownTexts[2].setX(125);
     this.breakdownTexts[2].setText(String(this.scoreBreakdown[1]));
 
+    if (this.levels[this.currentLevel - 1].isMineTile) {
+      this.breakdownHexes[3].setType(6);
+      this.breakdownHexes[3].setX(250);
+      this.breakdownTexts[3].setX(250);
+      this.breakdownTexts[3].setText(String(this.scoreBreakdown[6]));
+    }
+
     this.tweens.add({
       targets: this.gameOverText,
-      props: { x: 1040 },
+      props: { x: 1105 },
       delay: 300,
       duration: 300,
       ease: PhaserMath.Easing.Quadratic.Out,
@@ -848,15 +955,15 @@ export class MainScene extends Scene {
 
     this.tweens.add({
       targets: this.breakdownContainer,
-      props: { x: 1040 },
+      props: { x: 1105 },
       delay: 600,
       duration: 300,
       ease: PhaserMath.Easing.Quadratic.Out,
     });
 
     this.tweens.add({
-      targets: [this.rankText, this.nextRankText],
-      props: { x: 1040 },
+      targets: [this.rankText, this.nextRankText, this.nextLevelButton],
+      props: { x: 1105 },
       delay: 900,
       duration: 300,
       ease: PhaserMath.Easing.Quadratic.Out,
@@ -864,7 +971,7 @@ export class MainScene extends Scene {
 
     this.tweens.add({
       targets: [this.competitionNameText, this.currentTimeText],
-      props: { x: 1040 },
+      props: { x: 1105 },
       delay: 1200,
       duration: 300,
       ease: PhaserMath.Easing.Quadratic.Out,
@@ -873,7 +980,7 @@ export class MainScene extends Scene {
     if (isDemoGame) {
       this.tweens.add({
         targets: this.playAgainButton,
-        props: { x: 1040 },
+        props: { x: 1105 },
         delay: 1200,
         duration: 300,
         ease: PhaserMath.Easing.Quadratic.Out,
@@ -881,8 +988,8 @@ export class MainScene extends Scene {
     }
 
     this.tweens.add({
-      targets: this.shareButton,
-      props: { x: 1040 },
+      targets: [this.shareButton],
+      props: { x: 1105 },
       delay: 1500,
       duration: 300,
       ease: PhaserMath.Easing.Quadratic.Out,
@@ -903,6 +1010,7 @@ export class MainScene extends Scene {
     this.timerBackground?.setVisible(false);
     this.competitionNameText?.setVisible(false);
     this.currentTimeText?.setVisible(false);
+    this.nextLevelButton?.setVisible(false);
 
     // this.tweens.add({
     //   targets: this.foreground,
@@ -913,6 +1021,38 @@ export class MainScene extends Scene {
     this.time.addEvent({
       callback: this.scene.restart,
       callbackScope: this.scene,
+      delay: 500,
+    });
+  }
+
+  nextRound() {
+    this.breakdownContainer?.setVisible(false);
+    this.gameOverText?.setVisible(false);
+    this.nextRankText?.setVisible(false);
+    this.rankText?.setVisible(false);
+    this.playAgainButton?.setVisible(false);
+    this.shareButton?.setVisible(false);
+    this.scoreText?.setVisible(false);
+    this.timerText?.setVisible(false);
+    this.scoreBackground?.setVisible(false);
+    this.scoreBackground?.setVisible(false);
+    this.timerBackground?.setVisible(false);
+    this.competitionNameText?.setVisible(false);
+    this.currentTimeText?.setVisible(false);
+    this.nextLevelButton?.setVisible(false);
+
+    this.time.addEvent({
+      callback: () => {
+        if (this.currentLevel < 5) {
+          this.currentLevel = (this.currentLevel || 0) + 1;
+        } else {
+          this.currentLevel = 5;
+        }
+        const dataToPass = {
+          level: this.currentLevel,
+        };
+        this.scene.restart(dataToPass);
+      },
       delay: 500,
     });
   }
@@ -941,6 +1081,14 @@ export class MainScene extends Scene {
     this.pointerDown = false;
   }
 
+  placeTile(hex: Hex, type: number) {
+    hex.setType(type);
+    if (type === 6) {
+      hex.initiateGoldMineAnimation();
+    }
+    this.onNewPoints(1, type);
+  }
+
   placeTrihex() {
     if (!this.grid?.enabled) return;
     if (
@@ -948,7 +1096,15 @@ export class MainScene extends Scene {
         this.previewX,
         this.previewY,
         this.nextTrihex!,
-        this.onPlaceTile.bind(this)
+        (tiles: Tile[]) => {
+          tiles.forEach((tile) => {
+            const hex = this.grid!.grid.get(tile.row, tile.col);
+            if (hex) {
+              this.placeTile(hex, tile.tile_type);
+            }
+          });
+          this.onPlaceTile();
+        }
       )
     ) {
       this.pickNextTrihex();

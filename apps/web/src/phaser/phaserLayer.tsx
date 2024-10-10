@@ -85,8 +85,8 @@ export const PhaserLayer = ({
     checkOrientation();
     window.addEventListener("resize", checkOrientation);
     const config: Phaser.Types.Core.GameConfig = {
-      width: 1280,
-      height: 720,
+      width: 1405,
+      height: "100%",
       parent: "tileville-hex",
       type: Phaser.AUTO,
       scene: [LoadScene, MenuScene, MainScene],

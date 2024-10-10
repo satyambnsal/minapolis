@@ -21,6 +21,7 @@ export class Hex extends GameObjects.Image {
   seEdge: Phaser.GameObjects.Image;
   edges: Phaser.GameObjects.Group;
   propeller: Phaser.GameObjects.Image;
+  goldCoins: Phaser.GameObjects.Image[] = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -131,7 +132,9 @@ export class Hex extends GameObjects.Image {
 
   setType(hexType: number) {
     this.setTexture(
-      ["empty", "windmill", "grass", "street", "center", "port-bw"][hexType]
+      ["empty", "windmill", "grass", "street", "center", "port-bw", "mine"][
+        hexType
+      ]
     );
     this.hexType = hexType;
     if (hexType === 1) {
@@ -154,6 +157,8 @@ export class Hex extends GameObjects.Image {
       this.puffer.setParticleTint(0xae482c);
     } else if (hexType === 5) {
       this.puffer.setParticleTint(0x3b80a6);
+    } else if (hexType === 6) {
+      this.puffer.setVisible(false);
     }
 
     if (hexType === 5) {
@@ -163,6 +168,12 @@ export class Hex extends GameObjects.Image {
       this.wEdge.setVisible(false);
       this.nwEdge.setVisible(false);
       this.swEdge.setVisible(false);
+    }
+  }
+
+  initiateGoldMineAnimation() {
+    if (this.hexType === 6) {
+      this.createGoldMineAnimation();
     }
   }
 
@@ -200,6 +211,8 @@ export class Hex extends GameObjects.Image {
         this.setTexture("center-bw");
       } else if (this.hexType === 5) {
         this.setTexture("port-bw");
+      } else if (this.hexType === 6) {
+        this.setTexture("mine-bw");
       }
     } else {
       this.setAlpha(1);
@@ -220,8 +233,61 @@ export class Hex extends GameObjects.Image {
       } else if (this.hexType === 5) {
         if (this.upgraded) this.setTexture("port");
         else this.setTexture("port-bw");
+      } else if (this.hexType === 6) {
+        this.setTexture("mine-bw");
       }
     }
+  }
+
+  createGoldMineAnimation() {
+    const coinCount = 10;
+    const duration = 900;
+
+    for (let i = 0; i < coinCount; i++) {
+      const coin = this.scene.add.image(this.x, this.y, "gold-coin");
+      coin.setDepth(this.depth + 1);
+      coin.setScale(0.1);
+      this.goldCoins.push(coin);
+
+      const angle = Phaser.Math.Between(0, 360);
+      const distance = Phaser.Math.Between(0, 50);
+
+      const endX = this.x + distance * Math.cos((angle * Math.PI) / 90);
+      const endY = this.y + distance * Math.sin((angle * Math.PI) / 90);
+
+      // Animate each coin
+      this.scene.tweens.add({
+        targets: coin,
+        x: endX,
+        y: endY,
+        scaleX: 0.1,
+        scaleY: 0.1,
+        angle: Phaser.Math.Between(-720, 720),
+        duration: duration,
+        ease: "Quad.out",
+        onComplete: () => {
+          this.scene.tweens.add({
+            targets: coin,
+            y: "+=50",
+            alpha: 0,
+            scaleX: 0.02,
+            scaleY: 0.02,
+            angle: "+=180",
+            duration: 500,
+            ease: "Quad.in",
+            onComplete: () => {
+              coin.destroy();
+              const index = this.goldCoins.indexOf(coin);
+              if (index > -1) {
+                this.goldCoins.splice(index, 1);
+              }
+            },
+          });
+        },
+      });
+    }
+
+    this.scene.sound.play("place", { volume: 0.5 });
   }
 
   update(_: number, delta: number) {
